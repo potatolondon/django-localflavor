@@ -98,3 +98,54 @@ LICENSE_PLATE_PREFIX_CHOICES = (
     ('W', _('Sidoarjo')),
     ('Z', _('Garut')),
 )
+
+# see https://en.wikipedia.org/wiki/ISO_3166-2:ID
+# table: Geographical units
+GEOGRAPHICAL_UNIT_CHOICES = (
+    ('ID-JW', _('Jawa')),
+    ('ID-KA', _('Kalimantan')),
+    ('ID-ML', _('Maluku')),
+    ('ID-NU', _('Nusa Tenggara')),
+    ('ID-PP', _('Papua')),
+    ('ID-SL', _('Sulawesi')),
+    ('ID-SM', _('Sumatera'))
+)
+
+# see https://en.wikipedia.org/wiki/ISO_3166-2:ID
+# table: Autonomous province, provinces, special district, and special region
+AREA_CHOICES = (
+    ('ID-AC', _('Aceh')),  # autonomous province
+    ('ID-BA', _('Bali')),  # province
+    ('ID-BB', _('Kepulauan Bangka Belitung')),  # province
+    ('ID-BT', _('Banten')),  # province
+    ('ID-BE', _('Bengkulu')),  # province
+    ('ID-GO', _('Gorontalo')),  # province
+    ('ID-JA', _('Jambi')),  # province
+    ('ID-JB', _('Jawa Barat')),  # province
+    ('ID-JT', _('Jawa Tengah')),  # province
+    ('ID-JI', _('Jawa Timur')),  # province
+    ('ID-KB', _('Kalimantan Barat')),  # province
+    ('ID-KS', _('Kalimantan Selatan')),  # province
+    ('ID-KT', _('Kalimantan Tengah')),  # province
+    ('ID-KI', _('Kalimantan Timur')),  # province
+    ('ID-KU', _('Kalimantan Utara')),  # province
+    ('ID-KR', _('Kepulauan Riau')),  # province
+    ('ID-LA', _('Lampung')),  # province
+    ('ID-MA', _('Maluku')),  # province
+    ('ID-MU', _('Maluku Utara')),  # province
+    ('ID-NB', _('Nusa Tenggara Barat')),  # province
+    ('ID-NT', _('Nusa Tenggara Timur')),  # province
+    ('ID-PA', _('Papua')),  # province
+    ('ID-PB', _('Papua Barat')),  # province
+    ('ID-RI', _('Riau')),  # province
+    ('ID-SR', _('Sulawesi Barat')),  # province
+    ('ID-SN', _('Sulawesi Selatan')),  # province
+    ('ID-ST', _('Sulawesi Tengah')),  # province
+    ('ID-SG', _('Sulawesi Tenggara')),  # province
+    ('ID-SA', _('Sulawesi Utara')),  # province
+    ('ID-SB', _('Sumatera Barat')),  # province
+    ('ID-SS', _('Sumatera Selatan')),  # province
+    ('ID-SU', _('Sumatera Utara')),  # province
+    ('ID-JK', _('DKI Jakarta')),  # special district
+    ('ID-YO', _('DI Yogyakarta')),  # special region
+)
