@@ -1,9 +1,11 @@
-from __future__ import unicode_literals
-
+from django import forms
+from django.db import models
 from django.test import SimpleTestCase
 
-from localflavor.es.forms import (ESCCCField, ESIdentityCardNumberField, ESPhoneNumberField, ESPostalCodeField,
-                                  ESProvinceSelect, ESRegionSelect)
+from localflavor.es.forms import (ESCCCField, ESIdentityCardNumberField, ESPostalCodeField, ESProvinceSelect,
+                                  ESRegionSelect)
+from localflavor.es.models import ESIdentityCardNumberField as ESIdentityCardNumberModelField
+from localflavor.es.models import ESPostalCodeField as ESPostalCodeModelField
 
 
 class ESLocalFlavorTests(SimpleTestCase):
@@ -106,21 +108,9 @@ class ESLocalFlavorTests(SimpleTestCase):
         }
         self.assertFieldOutput(ESPostalCodeField, valid, invalid)
 
-    def test_ESPhoneNumberField(self):
-        error_invalid = ['Enter a valid phone number in one of the formats 6XXXXXXXX, 8XXXXXXXX or 9XXXXXXXX.']
-        valid = {
-            '650010101': '650010101',
-            '931234567': '931234567',
-            '800123123': '800123123',
-            '789789789': '789789789',
-        }
-        invalid = {
-            '555555555': error_invalid,
-            '489489489': error_invalid,
-            '99123123': error_invalid,
-            '9999123123': error_invalid,
-        }
-        self.assertFieldOutput(ESPhoneNumberField, valid, invalid)
+    def test_ESPostalCodeField_model_field_default_form(self):
+        field = ESPostalCodeModelField()
+        self.assertEqual(type(field.formfield()), type(ESPostalCodeField()))
 
     def test_ESIdentityCardNumberField(self):
         error_invalid = ['Please enter a valid NIF, NIE, or CIF.']
@@ -162,6 +152,22 @@ class ESLocalFlavorTests(SimpleTestCase):
             '78699688-2': error_invalid,
         }
         self.assertFieldOutput(ESIdentityCardNumberField, valid, invalid)
+
+    def test_ESIdentityCardNumberField_invalid_error_override(self):
+        # https://github.com/django/django-localflavor/issues/336
+        invalid_override_message = 'Please enter a valid number.'
+        form = ESIdentityCardNumberField(error_messages={'invalid': invalid_override_message})
+        self.assertEqual(form.error_messages['invalid'], invalid_override_message)
+
+    def test_ESIdentityCardNumberField_model_field_to_python_strips_whitespace(self):
+        field = ESIdentityCardNumberModelField()
+
+        self.assertEqual('X6124387Q', field.to_python('X-6124387-Q'))
+        self.assertEqual('P39008008', field.to_python('P 39008008'))
+
+    def test_ESIdentityCardNumberField_model_field_default_form(self):
+        field = ESIdentityCardNumberModelField()
+        self.assertEqual(type(field.formfield()), type(ESIdentityCardNumberField()))
 
     def test_ESCCCField(self):
         error_invalid = ['Please enter a valid bank account number in format XXXX-XXXX-XX-XXXXXXXXXX.']

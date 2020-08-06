@@ -1,9 +1,7 @@
-from __future__ import unicode_literals
-
 from django.test import SimpleTestCase
-
+from django.utils.translation import gettext_lazy as _
 from localflavor.id_.forms import (IDLicensePlateField, IDLicensePlatePrefixSelect, IDNationalIdentityNumberField,
-                                   IDPhoneNumberField, IDPostCodeField, IDProvinceSelect)
+                                   IDPostCodeField, IDProvinceSelect)
 
 
 class IDLocalFlavorTests(SimpleTestCase):
@@ -25,6 +23,7 @@ class IDLocalFlavorTests(SimpleTestCase):
 <option value="KSL">Kalimantan Selatan</option>
 <option value="KTG">Kalimantan Tengah</option>
 <option value="KTM">Kalimantan Timur</option>
+<option value="KTR">Kalimantan Utara</option>
 <option value="BBL">Kepulauan Bangka-Belitung</option>
 <option value="KRI">Kepulauan Riau</option>
 <option value="LPG" selected="selected">Lampung</option>
@@ -108,27 +107,8 @@ class IDLocalFlavorTests(SimpleTestCase):
 </select>'''
         self.assertHTMLEqual(f.render('codes', 'BE'), out)
 
-    def test_IDPhoneNumberField(self):
-        error_invalid = ['Enter a valid phone number']
-        valid = {
-            '0812-3456789': '0812-3456789',
-            '081234567890': '081234567890',
-            '021 345 6789': '021 345 6789',
-            '0213456789': '0213456789',
-            '+62-21-3456789': '+62-21-3456789',
-            '(021) 345 6789': '(021) 345 6789',
-        }
-        invalid = {
-            '0123456789': error_invalid,
-            '+62-021-3456789': error_invalid,
-            '+62-0812-3456789': error_invalid,
-            '0812345678901': error_invalid,
-            'foo': error_invalid,
-        }
-        self.assertFieldOutput(IDPhoneNumberField, valid, invalid)
-
     def test_IDPostCodeField(self):
-        error_invalid = ['Enter a valid post code']
+        error_invalid = [_('Enter a valid post code')]
         valid = {
             '12340': '12340',
             '25412': '25412',
@@ -144,22 +124,26 @@ class IDLocalFlavorTests(SimpleTestCase):
         self.assertFieldOutput(IDPostCodeField, valid, invalid)
 
     def test_IDNationalIdentityNumberField(self):
-        error_invalid = ['Enter a valid NIK/KTP number']
+        error_invalid = [_('Enter a valid NIK/KTP number')]
         valid = {
             ' 12.3456.010178 3456 ': '12.3456.010178.3456',
             '1234560101783456': '12.3456.010178.3456',
+            '1234564101783456': '12.3456.410178.3456',
             '12.3456.010101.3456': '12.3456.010101.3456',
+            '12.3456.410101.3456': '12.3456.410101.3456',
         }
         invalid = {
             '12.3456.310278.3456': error_invalid,
+            '12.3456.710278.3456': error_invalid,
             '00.0000.010101.0000': error_invalid,
+            '00.0000.410101.0000': error_invalid,
             '1234567890123456': error_invalid,
             'foo': error_invalid,
         }
         self.assertFieldOutput(IDNationalIdentityNumberField, valid, invalid)
 
     def test_IDLicensePlateField(self):
-        error_invalid = ['Enter a valid vehicle license plate number']
+        error_invalid = [_('Enter a valid vehicle license plate number')]
         valid = {
             ' b 1234  ab ': 'B 1234 AB',
             'B 1234 ABC': 'B 1234 ABC',

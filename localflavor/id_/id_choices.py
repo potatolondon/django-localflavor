@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 #: Indonesia does not have an official Province code standard.
 #: I decided to use unambiguous and consistent (some are common) 3-letter codes.
@@ -19,6 +19,7 @@ PROVINCE_CHOICES = (
     ('KSL', _('Kalimantan Selatan')),
     ('KTG', _('Kalimantan Tengah')),
     ('KTM', _('Kalimantan Timur')),
+    ('KTR', _('Kalimantan Utara')),
     ('BBL', _('Kepulauan Bangka-Belitung')),
     ('KRI', _('Kepulauan Riau')),
     ('LPG', _('Lampung')),

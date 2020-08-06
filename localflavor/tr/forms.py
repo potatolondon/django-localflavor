@@ -1,18 +1,11 @@
-from __future__ import unicode_literals
-
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
-from django.forms.fields import CharField, Field, RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.forms.fields import Field, RegexField, Select
+from django.utils.translation import gettext_lazy as _
 
 from .tr_provinces import PROVINCE_CHOICES
-
-phone_digits_re = re.compile(r'^(\+90|0)? ?(([1-9]\d{2})|\([1-9]\d{2}\)) ?([2-9]\d{2} ?\d{2} ?\d{2})$')
 
 
 class TRPostalCodeField(RegexField):
@@ -26,43 +19,22 @@ class TRPostalCodeField(RegexField):
         'invalid': _('Enter a postal code in the format XXXXX.'),
     }
 
-    def __init__(self, max_length=5, min_length=5, *args, **kwargs):
-        super(TRPostalCodeField, self).__init__(r'^\d{5}$',
-                                                max_length, min_length, *args, **kwargs)
+    def __init__(self, max_length=5, min_length=5, **kwargs):
+        super().__init__(
+            r'^\d{5}$', max_length=max_length, min_length=min_length,
+            **kwargs
+        )
 
     def clean(self, value):
-        value = super(TRPostalCodeField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         if len(value) != 5:
             raise ValidationError(self.error_messages['invalid'])
         province_code = int(value[:2])
         if province_code == 0 or province_code > 81:
             raise ValidationError(self.error_messages['invalid'])
         return value
-
-
-class TRPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as a Turkish phone number.
-
-    The correct format is 0xxx xxx xxxx. +90xxx xxx xxxx and inputs without spaces also
-    validates. The result is normalized to xxx xxx xxxx format.
-    """
-
-    default_error_messages = {
-        'invalid': _('Phone numbers must be in 0XXX XXX XXXX format.'),
-    }
-
-    def clean(self, value):
-        super(TRPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+)', '', force_text(value))
-        m = phone_digits_re.search(value)
-        if m:
-            return '%s%s' % (m.group(2), m.group(4))
-        raise ValidationError(self.error_messages['invalid'])
 
 
 class TRIdentificationNumberField(Field):
@@ -86,7 +58,7 @@ class TRIdentificationNumberField(Field):
     }
 
     def clean(self, value):
-        super(TRIdentificationNumberField, self).clean(value)
+        value = super().clean(value)
 
         if value in EMPTY_VALUES:
             return ''
@@ -115,4 +87,4 @@ class TRProvinceSelect(Select):
     """A Select widget that uses a list of provinces in Turkey as its choices."""
 
     def __init__(self, attrs=None):
-        super(TRProvinceSelect, self).__init__(attrs, choices=PROVINCE_CHOICES)
+        super().__init__(attrs, choices=PROVINCE_CHOICES)

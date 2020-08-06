@@ -1,21 +1,10 @@
 """Australian-specific Form helpers."""
 
-from __future__ import unicode_literals
-
-import re
-
-from django.core.validators import EMPTY_VALUES
-from django.forms import ValidationError
 from django.forms.fields import CharField, RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
 
 from .au_states import STATE_CHOICES
 from .validators import AUBusinessNumberFieldValidator, AUCompanyNumberFieldValidator, AUTaxFileNumberFieldValidator
-
-PHONE_DIGITS_RE = re.compile(r'^(\d{10})$')
 
 
 class AUPostCodeField(RegexField):
@@ -30,39 +19,15 @@ class AUPostCodeField(RegexField):
         'invalid': _('Enter a 4 digit postcode.'),
     }
 
-    def __init__(self, max_length=4, min_length=None, *args, **kwargs):
-        super(AUPostCodeField, self).__init__(r'^\d{4}$',
-                                              max_length, min_length, *args, **kwargs)
-
-
-class AUPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as an Australian phone number.
-
-    Valid numbers have ten digits.
-    """
-
-    default_error_messages = {
-        'invalid': 'Phone numbers must contain 10 digits.',
-    }
-
-    def clean(self, value):
-        """Validate a phone number. Strips parentheses, whitespace and hyphens."""
-        super(AUPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+|-)', '', force_text(value))
-        phone_match = PHONE_DIGITS_RE.search(value)
-        if phone_match:
-            return '%s' % phone_match.group(1)
-        raise ValidationError(self.error_messages['invalid'])
+    def __init__(self, max_length=4, **kwargs):
+        super().__init__(r'^\d{4}$', max_length=max_length, **kwargs)
 
 
 class AUStateSelect(Select):
     """A Select widget that uses a list of Australian states/territories as its choices."""
 
     def __init__(self, attrs=None):
-        super(AUStateSelect, self).__init__(attrs, choices=STATE_CHOICES)
+        super().__init__(attrs, choices=STATE_CHOICES)
 
 
 class AUBusinessNumberField(CharField):
@@ -76,7 +41,9 @@ class AUBusinessNumberField(CharField):
     default_validators = [AUBusinessNumberFieldValidator()]
 
     def to_python(self, value):
-        value = super(AUBusinessNumberField, self).to_python(value)
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.upper().replace(' ', '')
 
     def prepare_value(self, value):
@@ -98,7 +65,9 @@ class AUCompanyNumberField(CharField):
     default_validators = [AUCompanyNumberFieldValidator()]
 
     def to_python(self, value):
-        value = super(AUCompanyNumberField, self).to_python(value)
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.upper().replace(' ', '')
 
     def prepare_value(self, value):

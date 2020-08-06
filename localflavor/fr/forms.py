@@ -1,18 +1,11 @@
-# -*- coding: utf-8 -*-
 """FR-specific Form helpers"""
-from __future__ import unicode_literals
-
 import re
 from datetime import date
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.checksums import luhn
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
+from stdnum import luhn
 
 from .fr_department import DEPARTMENT_CHOICES_PER_REGION
 from .fr_region import REGION_2016_CHOICES, REGION_CHOICES
@@ -34,49 +27,11 @@ class FRZipCodeField(RegexField):
         'invalid': _('Enter a zip code in the format XXXXX.'),
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         kwargs.setdefault('label', _('Zip code'))
         kwargs['max_length'] = 5
         kwargs['min_length'] = 5
-        super(FRZipCodeField, self).__init__(r'^\d{5}$', *args, **kwargs)
-
-
-class FRPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    Validate local French phone number (not international ones).
-
-    The correct format is '0X XX XX XX XX'.
-    '0X.XX.XX.XX.XX' and '0XXXXXXXXX' validate but are corrected to
-    '0X XX XX XX XX'.
-    """
-
-    phone_digits_re = re.compile(r'^0\d(\s|\.)?(\d{2}(\s|\.)?){3}\d{2}$')
-
-    default_error_messages = {
-        'invalid': _('Phone numbers must be in 0X XX XX XX XX format.'),
-    }
-
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault('label', _('Phone number'))
-        kwargs['max_length'] = 14
-        kwargs['min_length'] = 10
-        super(FRPhoneNumberField, self).__init__(*args, **kwargs)
-
-    def clean(self, value):
-        value = super(FRPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\.|\s)', '', force_text(value))
-        m = self.phone_digits_re.search(value)
-        if m:
-            return '%s %s %s %s %s' % (
-                value[0:2],
-                value[2:4],
-                value[4:6],
-                value[6:8],
-                value[8:10]
-            )
-        raise ValidationError(self.error_messages['invalid'])
+        super().__init__(r'^\d{5}$', **kwargs)
 
 
 class FRDepartmentSelect(Select):
@@ -87,10 +42,7 @@ class FRDepartmentSelect(Select):
             (dep[0], '%s - %s' % (dep[0], dep[1]))
             for dep in DEPARTMENT_CHOICES_PER_REGION
         ]
-        super(FRDepartmentSelect, self).__init__(
-            attrs,
-            choices=choices
-        )
+        super().__init__(attrs, choices=choices)
 
 
 class FRRegionSelect(Select):
@@ -101,10 +53,7 @@ class FRRegionSelect(Select):
             (dep[0], '%s - %s' % (dep[0], dep[1]))
             for dep in REGION_CHOICES
         ]
-        super(FRRegionSelect, self).__init__(
-            attrs,
-            choices=choices
-        )
+        super().__init__(attrs, choices=choices)
 
 
 class FRRegion2016Select(Select):
@@ -116,7 +65,7 @@ class FRRegion2016Select(Select):
             (reg[0], '%s - %s' % (reg[0], reg[1]))
             for reg in REGION_2016_CHOICES
         ]
-        super(FRRegion2016Select, self).__init__(attrs, choices=choices)
+        super().__init__(attrs, choices=choices)
 
 
 class FRDepartmentField(CharField):
@@ -126,7 +75,7 @@ class FRDepartmentField(CharField):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('label', _('Select Department'))
-        super(FRDepartmentField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class FRRegionField(CharField):
@@ -136,7 +85,7 @@ class FRRegionField(CharField):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('label', _('Select Region'))
-        super(FRRegionField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class FRNationalIdentificationNumber(CharField):
@@ -144,6 +93,10 @@ class FRNationalIdentificationNumber(CharField):
     Validates input as a French National Identification number.
 
     Validation of the Number, and checksum calculation is detailed at http://en.wikipedia.org/wiki/INSEE_code
+
+    Complete spec of the codification is detailed here:
+      - https://fr.scribd.com/document/456848429/INSEE-Guide-Identification
+      - https://fr.scribd.com/document/456848431/INSEE-Codes-Pays
 
     .. versionadded:: 1.1
     """
@@ -153,9 +106,9 @@ class FRNationalIdentificationNumber(CharField):
     }
 
     def clean(self, value):
-        super(FRNationalIdentificationNumber, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         value = value.replace(' ', '').replace('-', '')
 
@@ -194,42 +147,53 @@ class FRNationalIdentificationNumber(CharField):
             raise ValidationError(self.error_messages['invalid'])
 
     def _clean_department_and_commune(self, commune_of_origin, current_year, department_of_origin, year_of_birth):
-        # Department number 98 is for Monaco
-        if department_of_origin == '98':
-            raise ValidationError(self.error_messages['invalid'])
-
-        # Departments number 20, 2A and 2B represent Corsica
         if department_of_origin in ['20', '2A', '2B']:
-            # For people born before 1976, Corsica number was 20
-            if current_year < int(year_of_birth) < 76 and department_of_origin != '20':
-                raise ValidationError(self.error_messages['invalid'])
-            # For people born from 1976, Corsica dep number is either 2A or 2B
-            if (int(year_of_birth) > 75 and department_of_origin not in ['2A', '2B']):
-                raise ValidationError(self.error_messages['invalid'])
-
-        # Overseas department numbers starts with 97 and are 3 digits long
-        if department_of_origin == '97':
-            department_of_origin += commune_of_origin[:1]
-            if int(department_of_origin) not in range(971, 976):
-                raise ValidationError(self.error_messages['invalid'])
-            commune_of_origin = commune_of_origin[1:]
-            if int(commune_of_origin) < 1 or int(commune_of_origin) > 90:
-                raise ValidationError(self.error_messages['invalid'])
-        elif int(commune_of_origin) < 1 or int(commune_of_origin) > 990:
-            raise ValidationError(self.error_messages['invalid'])
+            self._check_corsica(commune_of_origin, current_year, department_of_origin, year_of_birth)
+        elif department_of_origin in ['97', '98']:
+            self._check_overseas(commune_of_origin, current_year, department_of_origin, year_of_birth)
+        elif department_of_origin == '99':
+            self._check_foreign_countries(commune_of_origin, current_year, department_of_origin, year_of_birth)
         return commune_of_origin, department_of_origin
 
+    def _check_corsica(self, commune_of_origin, current_year, department_of_origin, year_of_birth):
+        """Departments number 20, 2A and 2B represent Corsica"""
+        # For people born before 1976, Corsica number was 20
+        if current_year < int(year_of_birth) < 76 and department_of_origin != '20':
+            raise ValidationError(self.error_messages['invalid'])
+        # For people born from 1976, Corsica dep number is either 2A or 2B
+        if (int(year_of_birth) > 75 and department_of_origin not in ['2A', '2B']):
+            raise ValidationError(self.error_messages['invalid'])
 
-class FRSIRENENumberMixin(object):
+    def _check_overseas(self, commune_of_origin, current_year, department_of_origin, year_of_birth):
+        """Overseas department numbers starts with 97 or 98 and are 3 digits long"""
+        overseas_department_of_origin = department_of_origin + commune_of_origin[:1]
+        overseas_commune_of_origin = commune_of_origin[1:]
+        if department_of_origin == '97' and int(overseas_department_of_origin) not in range(971, 978):
+            raise ValidationError(self.error_messages['invalid'])
+        elif department_of_origin == '98' and int(overseas_department_of_origin) not in range(984, 989):
+            raise ValidationError(self.error_messages['invalid'])
+        if int(overseas_commune_of_origin) < 1 or int(overseas_commune_of_origin) > 90:
+            raise ValidationError(self.error_messages['invalid'])
+
+    def _check_foreign_countries(self, commune_of_origin, current_year, department_of_origin, year_of_birth):
+        """
+        The department_of_origin '99' is reserved for people born in a foreign country.
+        In this case, commune_of_origin is the INSEE country code, must be [001-990]
+        """
+        if int(commune_of_origin) < 1 or int(commune_of_origin) > 990:
+            raise ValidationError(self.error_messages['invalid'])
+
+
+class FRSIRENENumberMixin:
     """Abstract class for SIREN and SIRET numbers, from the SIRENE register."""
 
     def clean(self, value):
-        super(FRSIRENENumberMixin, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         value = value.replace(' ', '').replace('-', '')
-        if not self.r_valid.match(value) or not luhn(value):
+        if not self.r_valid.match(value) or not luhn.is_valid(value):
             raise ValidationError(self.error_messages['invalid'])
         return value
 
@@ -274,14 +238,15 @@ class FRSIRETField(FRSIRENENumberMixin, CharField):
     }
 
     def clean(self, value):
-        if value not in EMPTY_VALUES:
-            value = value.replace(' ', '').replace('-', '')
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
-        ret = super(FRSIRETField, self).clean(value)
+        value = value.replace(' ', '').replace('-', '')
 
-        if not luhn(ret[:9]):
+        if not luhn.is_valid(value[:9]):
             raise ValidationError(self.error_messages['invalid'])
-        return ret
+        return value
 
     def prepare_value(self, value):
         if value is None:

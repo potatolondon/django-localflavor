@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.test import SimpleTestCase
 
 from localflavor.cz.forms import CZBirthNumberField, CZICNumberField, CZPostalCodeField, CZRegionSelect
@@ -47,9 +45,9 @@ class CZLocalFlavorTests(SimpleTestCase):
         valid = {
             '880523/1237': '880523/1237',
             '8805231237': '8805231237',
-            '880523/000': '880523/000',
-            '880523000': '880523000',
             '882101/0011': '882101/0011',
+            '520110/000': '520110/000',
+            '520110000': '520110000',
         }
         invalid = {
             '123456/12': error_format,
@@ -59,6 +57,8 @@ class CZLocalFlavorTests(SimpleTestCase):
             '880523/1239': error_invalid,
             '8805231239': error_invalid,
             '990101/0011': error_invalid,
+            '880523000': error_invalid,
+            '880523/000': error_invalid,
         }
         self.assertFieldOutput(CZBirthNumberField, valid, invalid)
 

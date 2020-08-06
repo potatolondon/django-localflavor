@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.test import SimpleTestCase, TestCase
 from django.utils import formats
@@ -114,6 +111,7 @@ class IBANTests(TestCase):
             'CH9300762011623852957',
             'IL620108000000099999999',
             'EE982200221111099080',
+            'VA59001123000012345678',
 
             None,
         ]
@@ -281,7 +279,7 @@ class IBANTests(TestCase):
         # A few non-SEPA valid IBANs.
         invalid = {
             'SA03 8000 0000 6080 1016 7519': ['SA IBANs are not allowed in this field.'],
-            'CR05 1520 2001 0262 8406 6': ['CR IBANs are not allowed in this field.'],
+            'CR05 0152 0200 1026 2840 66': ['CR IBANs are not allowed in this field.'],
             'XK05 1212 0123 4567 8906': ['XK IBANs are not allowed in this field.']
         }
 
@@ -291,6 +289,14 @@ class IBANTests(TestCase):
     def test_default_form(self):
         iban_model_field = IBANField()
         self.assertEqual(type(iban_model_field.formfield()), type(IBANFormField()))
+
+    def test_model_field_deconstruct(self):
+        # test_instance must be created with the non-default options.
+        test_instance = IBANField(include_countries=('NL', 'BE'), use_nordea_extensions=True)
+        name, path, args, kwargs = test_instance.deconstruct()
+        new_instance = IBANField(*args, **kwargs)
+        for attr in ('include_countries', 'use_nordea_extensions'):
+            self.assertEqual(getattr(test_instance, attr), getattr(new_instance, attr))
 
 
 class BICTests(TestCase):
@@ -315,7 +321,10 @@ class BICTests(TestCase):
             'NEDSZAJJXX': 'BIC codes have either 8 or 11 characters.',
             '': 'BIC codes have either 8 or 11 characters.',
             'CIBCJJH2': 'JJ is not a valid country code.',
-            'DÉUTDEFF': 'is not a valid institution code.'
+            'D3UTDEFF': 'is not a valid institution code.',
+            'DAAEDEDOXXX': 'is not a valid location code.',
+            'DÉUTDEFF': 'codes only contain alphabet letters and digits.',
+            'NEDSZAJJ XX': 'codes only contain alphabet letters and digits.',
         }
 
         bic_validator = BICValidator()
@@ -450,11 +459,3 @@ class EANTests(TestCase):
 
         for value in invalid:
             self.assertRaisesMessage(ValidationError,  error_message, validator, value)
-
-    def test_deconstruct_methods(self):
-        # test_instance must be created with the non-default options.
-        test_instance = IBANField(include_countries=('NL', 'BE'), use_nordea_extensions=True)
-        name, path, args, kwargs = test_instance.deconstruct()
-        new_instance = IBANField(*args, **kwargs)
-        for attr in ('include_countries', 'use_nordea_extensions'):
-            self.assertEqual(getattr(test_instance, attr), getattr(new_instance, attr))

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.test import SimpleTestCase
 
 from localflavor.ar.forms import ARCBUField, ARCUITField, ARDNIField, ARPostalCodeField, ARProvinceSelect
@@ -46,7 +44,6 @@ class ARLocalFlavorTests(SimpleTestCase):
             'c1064AAB': 'C1064AAB',
             'C1064aab': 'C1064AAB',
             '4400': '4400',
-            'C1064AAB': 'C1064AAB',
         }
         invalid = {
             'C1064AABB': error_atmost + error_format,
@@ -64,8 +61,6 @@ class ARLocalFlavorTests(SimpleTestCase):
         valid = {
             '20123456': '20123456',
             '20.123.456': '20123456',
-            '20123456': '20123456',
-            '20.123.456': '20123456',
             '20.123456': '20123456',
             '9123456': '9123456',
             '9.123.456': '9123456',
@@ -80,9 +75,8 @@ class ARLocalFlavorTests(SimpleTestCase):
     def test_ARCUITField(self):
         error_format = ['Enter a valid CUIT in XX-XXXXXXXX-X or XXXXXXXXXXXX format.']
         error_invalid = ['Invalid CUIT.']
-        error_legal_type = ['Invalid legal type. Type must be 27, 20, 30, 23, 24 or 33.']
+        error_legal_type = ['Invalid legal type. Type must be 27, 20, 30, 23, 24, 33 or 34.']
         valid = {
-            '20-10123456-9': '20-10123456-9',
             '20-10123456-9': '20-10123456-9',
             '27-10345678-4': '27-10345678-4',
             '20101234569': '20-10123456-9',
@@ -91,6 +85,7 @@ class ARLocalFlavorTests(SimpleTestCase):
             '24117166062': '24-11716606-2',
             '33500001599': '33-50000159-9',
             '23000052264': '23-00005226-4',
+            '34546198105': '34-54619810-5',
         }
         invalid = {
             '2-10123456-9': error_format,
@@ -98,7 +93,6 @@ class ARLocalFlavorTests(SimpleTestCase):
             '20-10123456': error_format,
             '20-10123456-': error_format,
             '20-10123456-5': error_invalid,
-            '27-10345678-1': error_invalid,
             '27-10345678-1': error_invalid,
             '11211111110': error_legal_type,
         }
@@ -109,20 +103,13 @@ class ARLocalFlavorTests(SimpleTestCase):
         error_length = ['CBU must be exactly 22 digits long.']
         error_checksum = ['Invalid CBU.']
         valid = {
-            '2237628810898098715378': '2237628810898098715378',
-            '5433758936130717465023': '5433758936130717465023',
             '5729195067928761667584': '5729195067928761667584',
             '9498175528566296510521': '9498175528566296510521',
             '7362966507842824472644': '7362966507842824472644',
-            '8693513393883886497274': '8693513393883886497274',
-            '1542952861593836535608': '1542952861593836535608',
-            '5833008953419074707467': '5833008953419074707467',
-            '9687027721961737239525': '9687027721961737239525',
-            '8048819274216931992586': '8048819274216931992586'
         }
 
         invalid = {
-            'abc123def456-9024-2313': error_format,
+            'abc123def456-9024-2313-22': error_format,
             '142512591859898123123': error_length,
             '12312452521512526125566': error_length,
             '1234567891234567891234': error_checksum,

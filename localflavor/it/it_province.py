@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*
-from __future__ import unicode_literals
-
 #: An alphabetical list of provinces and regions
 PROVINCES = (
     ('AG', 'Agrigento', 'SIC'),
@@ -24,7 +21,6 @@ PROVINCES = (
     ('CA', 'Cagliari', 'SAR'),
     ('CL', 'Caltanissetta', 'SIC'),
     ('CB', 'Campobasso', 'MOL'),
-    ('CI', 'Carbonia-Iglesias', 'SAR'),
     ('CE', 'Caserta', 'CAM'),
     ('CT', 'Catania', 'SIC'),
     ('CZ', 'Catanzaro', 'CAL'),
@@ -58,7 +54,6 @@ PROVINCES = (
     ('MN', 'Mantova', 'LOM'),
     ('MS', 'Massa-Carrara', 'TOS'),
     ('MT', 'Matera', 'BAS'),
-    ('VS', 'Medio Campidano', 'SAR'),
     ('ME', 'Messina', 'SIC'),
     ('MI', 'Milano', 'LOM'),
     ('MO', 'Modena', 'EMR'),
@@ -66,8 +61,6 @@ PROVINCES = (
     ('NA', 'Napoli', 'CAM'),
     ('NO', 'Novara', 'PMN'),
     ('NU', 'Nuoro', 'SAR'),
-    ('OG', 'Ogliastra', 'SAR'),
-    ('OT', 'Olbia-Tempio', 'SAR'),
     ('OR', 'Oristano', 'SAR'),
     ('PD', 'Padova', 'VEN'),
     ('PA', 'Palermo', 'SIC'),
@@ -96,6 +89,7 @@ PROVINCES = (
     ('SI', 'Siena', 'TOS'),
     ('SR', 'Siracusa', 'SIC'),
     ('SO', 'Sondrio', 'LOM'),
+    ('SU', 'Sud Sardegna', 'SAR'),  # active starting from 2016
     ('TA', 'Taranto', 'PUG'),
     ('TE', 'Teramo', 'ABR'),
     ('TR', 'Terni', 'UMB'),

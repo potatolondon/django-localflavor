@@ -1,19 +1,13 @@
 """Canada-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, Field, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
+from stdnum import luhn
 
-from localflavor.generic.checksums import luhn
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
-
-phone_digits_re = re.compile(r'^(?:1-?)?(\d{3})[-\.]?(\d{3})[-\.]?(\d{4})$')
 sin_re = re.compile(r"^(\d{3})-(\d{3})-(\d{3})$")
 
 
@@ -35,32 +29,14 @@ class CAPostalCodeField(CharField):
         r'^([ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]) *(\d[ABCEGHJKLMNPRSTVWXYZ]\d)$')
 
     def clean(self, value):
-        value = super(CAPostalCodeField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         postcode = value.upper().strip()
         m = self.postcode_regex.match(postcode)
         if not m:
             raise ValidationError(self.error_messages['invalid'])
         return "%s %s" % (m.group(1), m.group(2))
-
-
-class CAPhoneNumberField(Field, DeprecatedPhoneNumberFormFieldMixin):
-    """Canadian phone number form field."""
-
-    default_error_messages = {
-        'invalid': _('Phone numbers must be in XXX-XXX-XXXX format.'),
-    }
-
-    def clean(self, value):
-        super(CAPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+)', '', force_text(value))
-        m = phone_digits_re.search(value)
-        if m:
-            return '%s-%s-%s' % (m.group(1), m.group(2), m.group(3))
-        raise ValidationError(self.error_messages['invalid'])
 
 
 class CAProvinceField(Field):
@@ -76,7 +52,7 @@ class CAProvinceField(Field):
     }
 
     def clean(self, value):
-        super(CAProvinceField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
         try:
@@ -99,7 +75,7 @@ class CAProvinceSelect(Select):
     def __init__(self, attrs=None):
         # Load data in memory only when it is required, see also #17275
         from .ca_provinces import PROVINCE_CHOICES
-        super(CAProvinceSelect, self).__init__(attrs, choices=PROVINCE_CHOICES)
+        super().__init__(attrs, choices=PROVINCE_CHOICES)
 
 
 class CASocialInsuranceNumberField(Field):
@@ -121,7 +97,7 @@ class CASocialInsuranceNumberField(Field):
     }
 
     def clean(self, value):
-        super(CASocialInsuranceNumberField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
 
@@ -134,6 +110,6 @@ class CASocialInsuranceNumberField(Field):
             match.group(1),
             match.group(2),
             match.group(3))
-        if not luhn(check_number):
+        if not luhn.is_valid(check_number):
             raise ValidationError(self.error_messages['invalid'])
         return number

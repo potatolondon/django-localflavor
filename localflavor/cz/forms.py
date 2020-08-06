@@ -1,13 +1,11 @@
 """Czech-specific form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import Field, RegexField, Select
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from .cz_regions import REGION_CHOICES
 
@@ -19,7 +17,7 @@ class CZRegionSelect(Select):
     """A select widget widget with list of Czech regions as choices."""
 
     def __init__(self, attrs=None):
-        super(CZRegionSelect, self).__init__(attrs, choices=REGION_CHOICES)
+        super().__init__(attrs, choices=REGION_CHOICES)
 
 
 class CZPostalCodeField(RegexField):
@@ -33,9 +31,8 @@ class CZPostalCodeField(RegexField):
         'invalid': _('Enter a postal code in the format XXXXX or XXX XX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(CZPostalCodeField, self).__init__(r'^\d{5}$|^\d{3} \d{2}$',
-                                                max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{5}$|^\d{3} \d{2}$', **kwargs)
 
     def clean(self, value):
         """
@@ -43,8 +40,10 @@ class CZPostalCodeField(RegexField):
 
         Returns an empty string for empty values.
         """
-        v = super(CZPostalCodeField, self).clean(value)
-        return v.replace(' ', '')
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
+        return value.replace(' ', '')
 
 
 class CZBirthNumberField(Field):
@@ -56,7 +55,7 @@ class CZBirthNumberField(Field):
     }
 
     def clean(self, value):
-        super(CZBirthNumberField, self).clean(value)
+        value = super().clean(value)
 
         if value in EMPTY_VALUES:
             return ''
@@ -68,7 +67,7 @@ class CZBirthNumberField(Field):
         birth, id = match.groupdict()['birth'], match.groupdict()['id']
 
         # Three digits for verification number were used until 1. january 1954
-        if len(id) == 3:
+        if len(id) == 3 and int(birth[:2]) < 54:
             return '%s' % value
 
         # Birth number is in format YYMMDD. Females have month value raised by 50.
@@ -105,7 +104,7 @@ class CZICNumberField(Field):
     }
 
     def clean(self, value):
-        super(CZICNumberField, self).clean(value)
+        value = super().clean(value)
 
         if value in EMPTY_VALUES:
             return ''

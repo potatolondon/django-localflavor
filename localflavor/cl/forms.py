@@ -1,12 +1,9 @@
 """Chile specific form helpers."""
 
-from __future__ import unicode_literals
-
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 from .cl_regions import REGION_CHOICES
 
@@ -15,7 +12,7 @@ class CLRegionSelect(Select):
     """A Select widget that uses a list of Chilean Regions (Regiones) as its choices."""
 
     def __init__(self, attrs=None):
-        super(CLRegionSelect, self).__init__(attrs, choices=REGION_CHOICES)
+        super().__init__(attrs, choices=REGION_CHOICES)
 
 
 class CLRutField(RegexField):
@@ -34,22 +31,22 @@ class CLRutField(RegexField):
         'checksum': _('The Chilean RUT is not valid.'),
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         if 'strict' in kwargs:
             del kwargs['strict']
-            super(CLRutField, self).__init__(r'^(\d{1,2}\.)?\d{3}\.\d{3}-[\dkK]$',
-                                             error_messages={'invalid': self.default_error_messages['strict']},
-                                             *args, **kwargs)
+            super().__init__(r'^(\d{1,2}\.)?\d{3}\.\d{3}-[\dkK]$',
+                             error_messages={'invalid': self.default_error_messages['strict']},
+                             **kwargs)
         else:
             # In non-strict mode, accept RUTs that validate but do not exist in
             # the real world.
-            super(CLRutField, self).__init__(r'^[\d\.]{1,11}-?[\dkK]$', *args, **kwargs)
+            super().__init__(r'^[\d\.]{1,11}-?[\dkK]$', **kwargs)
 
     def clean(self, value):
         """Check and clean the Chilean RUT."""
-        super(CLRutField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         rut, verificador = self._canonify(value)
         if self._algorithm(rut) == verificador:
             return self._format(rut, verificador)
@@ -69,7 +66,7 @@ class CLRutField(RegexField):
 
     def _canonify(self, rut):
         """Turns the RUT into one normalized format. Returns a (rut, verifier) tuple."""
-        rut = force_text(rut).replace(' ', '').replace('.', '').replace('-', '')
+        rut = force_str(rut).replace(' ', '').replace('.', '').replace('-', '')
         return rut[:-1], rut[-1].upper()
 
     def _format(self, code, verifier=None):

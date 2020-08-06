@@ -1,17 +1,10 @@
-# -*- coding: utf-8 -*-
 """Spanish-specific Form helpers."""
-
-from __future__ import unicode_literals
 
 import re
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import RegexField, Select
-from django.utils import six
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
 
 from .es_provinces import PROVINCE_CHOICES
 from .es_regions import REGION_CHOICES
@@ -29,39 +22,15 @@ class ESPostalCodeField(RegexField):
         'invalid': _('Enter a valid postal code in the range and format 01XXX - 52XXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(ESPostalCodeField, self).__init__(
-            r'^(0[1-9]|[1-4][0-9]|5[0-2])\d{3}$',
-            max_length, min_length, *args, **kwargs)
-
-
-class ESPhoneNumberField(RegexField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates its input as a Spanish phone number.
-
-    Information numbers are ommited.
-
-    Spanish phone numbers are nine digit numbers, where first digit is 6 (for
-    cell phones), 8 (for special phones), or 9 (for landlines and special
-    phones)
-
-    TODO: accept and strip characters like dot, hyphen... in phone number
-    """
-
-    default_error_messages = {
-        'invalid': _('Enter a valid phone number in one of the formats 6XXXXXXXX, 8XXXXXXXX or 9XXXXXXXX.'),
-    }
-
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(ESPhoneNumberField, self).__init__(r'^(6|7|8|9)\d{8}$',
-                                                 max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^(0[1-9]|[1-4][0-9]|5[0-2])\d{3}$', **kwargs)
 
 
 class ESIdentityCardNumberField(RegexField):
     """
     Spanish NIF/NIE/CIF (Fiscal Identification Number) code.
 
-    Validates three diferent formats:
+    Validates three different formats:
 
         NIF (individuals): 12345678A
         CIF (companies): A12345678
@@ -90,7 +59,7 @@ class ESIdentityCardNumberField(RegexField):
         'invalid_cif': _('Invalid checksum for CIF.'),
     }
 
-    def __init__(self, only_nif=False, max_length=None, min_length=None, *args, **kwargs):
+    def __init__(self, only_nif=False, **kwargs):
         self.only_nif = only_nif
         self.nif_control = 'TRWAGMYFPDXBNJZSQVHLCKE'
         self.cif_control = 'JABCDEFGHI'
@@ -102,16 +71,18 @@ class ESIdentityCardNumberField(RegexField):
                                  self.nif_control + self.cif_control),
                                 re.IGNORECASE)
 
-        error_messages = kwargs.get('error_messages') or {}
-        error_messages['invalid'] = self.default_error_messages['invalid%s' % (self.only_nif and '_only_nif' or '')]
+        error_messages = {
+            'invalid': self.default_error_messages['invalid%s' % (self.only_nif and '_only_nif' or '')]
+        }
+        error_messages.update(kwargs.get('error_messages', {}))
         kwargs['error_messages'] = error_messages
 
-        super(ESIdentityCardNumberField, self).__init__(id_card_re, max_length, min_length, *args, **kwargs)
+        super().__init__(id_card_re, **kwargs)
 
     def clean(self, value):
-        super(ESIdentityCardNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         value = value.upper().replace(' ', '').replace('-', '')
         m = re.match(self.id_card_pattern %
@@ -128,7 +99,7 @@ class ESIdentityCardNumberField(RegexField):
                 raise ValidationError(self.error_messages['invalid_nif'])
         elif letter1 in self.nie_types and letter2:
             # NIE
-            if letter2 == self.nif_get_checksum(six.text_type(self.nie_types.index(letter1)) + number):
+            if letter2 == self.nif_get_checksum(str(self.nie_types.index(letter1)) + number):
                 return value
             else:
                 raise ValidationError(self.error_messages['invalid_nie'])
@@ -167,8 +138,6 @@ class ESCCCField(RegexField):
         string 1, 2, 4, 8, 5, 10, 9, 7, 3, 6. Sum resulting numbers and extract
         it from 11.  Result is checksum except when 10 then is 1, or when 11
         then is 0.
-
-        TODO: allow IBAN validation too
     """
 
     default_error_messages = {
@@ -176,14 +145,13 @@ class ESCCCField(RegexField):
         'checksum': _('Invalid checksum for bank account number.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(ESCCCField, self).__init__(r'^\d{4}[ -]?\d{4}[ -]?\d{2}[ -]?\d{10}$',
-                                         max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{4}[ -]?\d{4}[ -]?\d{2}[ -]?\d{10}$', **kwargs)
 
     def clean(self, value):
-        super(ESCCCField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         m = re.match(r'^(\d{4})[ -]?(\d{4})[ -]?(\d{2})[ -]?(\d{10})$', value)
         entity, office, checksum, account = m.groups()
         if get_checksum('00' + entity + office) + get_checksum(account) == checksum:
@@ -202,14 +170,14 @@ class ESRegionSelect(Select):
     """A Select widget that uses a list of spanish regions as its choices."""
 
     def __init__(self, attrs=None):
-        super(ESRegionSelect, self).__init__(attrs, choices=REGION_CHOICES)
+        super().__init__(attrs, choices=REGION_CHOICES)
 
 
 class ESProvinceSelect(Select):
     """A Select widget that uses a list of spanish provinces as its choices."""
 
     def __init__(self, attrs=None):
-        super(ESProvinceSelect, self).__init__(attrs, choices=PROVINCE_CHOICES)
+        super().__init__(attrs, choices=PROVINCE_CHOICES)
 
 
 def cif_get_checksum(number):

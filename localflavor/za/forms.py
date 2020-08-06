@@ -1,15 +1,11 @@
 """South Africa-specific Form helpers."""
-from __future__ import unicode_literals
-
 import re
 from datetime import date
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, RegexField, Select
 from django.utils.translation import gettext_lazy as _
-
-from localflavor.generic.checksums import luhn
+from stdnum import luhn
 
 id_re = re.compile(r'^(?P<yy>\d\d)(?P<mm>\d\d)(?P<dd>\d\d)(?P<mid>\d{4})(?P<end>\d{3})')
 
@@ -19,7 +15,7 @@ class ZAIDField(CharField):
     A form field for South African ID numbers.
 
     The checksum is validated using the Luhn checksum, and uses a simlistic (read: not entirely accurate)
-    check for the birthdate
+    check for the birth date.
     """
 
     default_error_messages = {
@@ -27,13 +23,13 @@ class ZAIDField(CharField):
     }
 
     def clean(self, value):
-        super(ZAIDField, self).clean(value)
+        value = super().clean(value)
 
-        if value in EMPTY_VALUES:
-            return ''
+        if value in self.empty_values:
+            return self.empty_value
 
         # strip spaces and dashes
-        value = value.strip().replace(' ', '').replace('-', '')
+        value = value.replace(' ', '').replace('-', '')
 
         match = re.match(id_re, value)
 
@@ -50,7 +46,7 @@ class ZAIDField(CharField):
         except ValueError:
             raise ValidationError(self.error_messages['invalid'])
 
-        if not luhn(value):
+        if not luhn.is_valid(value):
             raise ValidationError(self.error_messages['invalid'])
 
         return value
@@ -67,9 +63,8 @@ class ZAPostCodeField(RegexField):
         'invalid': _('Enter a valid South African postal code'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(ZAPostCodeField, self).__init__(r'^\d{4}$',
-                                              max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{4}$', **kwargs)
 
 
 class ZAProvinceSelect(Select):
@@ -77,4 +72,4 @@ class ZAProvinceSelect(Select):
 
     def __init__(self, attrs=None):
         from .za_provinces import PROVINCE_CHOICES
-        super(ZAProvinceSelect, self).__init__(attrs, choices=PROVINCE_CHOICES)
+        super().__init__(attrs, choices=PROVINCE_CHOICES)

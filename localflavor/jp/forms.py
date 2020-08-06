@@ -1,7 +1,7 @@
 """JP-specific Form helpers."""
 
 from django.forms.fields import RegexField, Select
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from .jp_prefectures import JP_PREFECTURE_CODES, JP_PREFECTURES
 
@@ -17,17 +17,16 @@ class JPPostalCodeField(RegexField):
         'invalid': _('Enter a postal code in the format XXXXXXX or XXX-XXXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(JPPostalCodeField, self).__init__(r'^\d{3}-\d{4}$|^\d{7}$',
-                                                max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{3}-\d{4}$|^\d{7}$', **kwargs)
 
     def clean(self, value):
         """
         Validates the input and returns a string that contains only numbers.
-
-        Returns an empty string for empty values.
         """
-        value = super(JPPostalCodeField, self).clean(value)
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.replace('-', '')
 
 
@@ -35,7 +34,7 @@ class JPPrefectureSelect(Select):
     """A Select widget that uses a list of Japanese prefectures as its choices."""
 
     def __init__(self, attrs=None):
-        super(JPPrefectureSelect, self).__init__(attrs, choices=JP_PREFECTURES)
+        super().__init__(attrs, choices=JP_PREFECTURES)
 
 
 class JPPrefectureCodeSelect(Select):
@@ -46,4 +45,4 @@ class JPPrefectureCodeSelect(Select):
     """
 
     def __init__(self, attrs=None):
-        super(JPPrefectureCodeSelect, self).__init__(attrs, choices=JP_PREFECTURE_CODES)
+        super().__init__(attrs, choices=JP_PREFECTURE_CODES)

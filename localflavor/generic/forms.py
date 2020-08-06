@@ -1,10 +1,4 @@
-from __future__ import unicode_literals
-
-import warnings
-
 from django import forms
-
-from localflavor.generic.deprecation import RemovedInLocalflavor20Warning
 
 from .validators import IBAN_COUNTRY_CODE_LENGTH, BICValidator, IBANValidator
 
@@ -34,26 +28,26 @@ IBAN_MIN_LENGTH = min(IBAN_COUNTRY_CODE_LENGTH.values())
 class DateField(forms.DateField):
     """A date input field which uses non-US date input formats by default."""
 
-    def __init__(self, input_formats=None, *args, **kwargs):
+    def __init__(self, input_formats=None, **kwargs):
         input_formats = input_formats or DEFAULT_DATE_INPUT_FORMATS
-        super(DateField, self).__init__(input_formats=input_formats, *args, **kwargs)
+        super().__init__(input_formats=input_formats, **kwargs)
 
 
 class DateTimeField(forms.DateTimeField):
     """A date and time input field which uses non-US date and time input formats by default."""
 
-    def __init__(self, input_formats=None, *args, **kwargs):
+    def __init__(self, input_formats=None, **kwargs):
         input_formats = input_formats or DEFAULT_DATETIME_INPUT_FORMATS
-        super(DateTimeField, self).__init__(input_formats=input_formats, *args, **kwargs)
+        super().__init__(input_formats=input_formats, **kwargs)
 
 
 class SplitDateTimeField(forms.SplitDateTimeField):
     """Split date and time input fields which use non-US date and time input formats by default."""
 
-    def __init__(self, input_date_formats=None, input_time_formats=None, *args, **kwargs):
+    def __init__(self, input_date_formats=None, input_time_formats=None, **kwargs):
         input_date_formats = input_date_formats or DEFAULT_DATE_INPUT_FORMATS
-        super(SplitDateTimeField, self).__init__(input_date_formats=input_date_formats,
-                                                 input_time_formats=input_time_formats, *args, **kwargs)
+        super().__init__(input_date_formats=input_date_formats,
+                         input_time_formats=input_time_formats, **kwargs)
 
 
 class IBANFormField(forms.CharField):
@@ -89,10 +83,12 @@ class IBANFormField(forms.CharField):
         kwargs.setdefault('min_length', IBAN_MIN_LENGTH)
         kwargs.setdefault('max_length', 34)
         self.default_validators = [IBANValidator(use_nordea_extensions, include_countries)]
-        super(IBANFormField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def to_python(self, value):
-        value = super(IBANFormField, self).to_python(value)
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.upper().replace(' ', '').replace('-', '')
 
     def prepare_value(self, value):
@@ -119,28 +115,19 @@ class BICFormField(forms.CharField):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('max_length', 11)
-        super(BICFormField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def to_python(self, value):
         # BIC is always written in upper case.
         # https://www2.swift.com/uhbonline/books/public/en_uk/bic_policy/bic_policy.pdf
-        value = super(BICFormField, self).to_python(value)
-        return value.upper()
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
+        return value.upper().replace(" ", "")
 
     def prepare_value(self, value):
         # BIC is always written in upper case.
-        value = super(BICFormField, self).prepare_value(value)
+        value = super().prepare_value(value)
         if value is not None:
             return value.upper()
         return value
-
-
-class DeprecatedPhoneNumberFormFieldMixin(object):
-    def __init__(self):
-        super(DeprecatedPhoneNumberFormFieldMixin, self).__init__()
-        warnings.warn(
-            "{} is deprecated in favor of the django-phonenumber-field library.".format(
-                self.__class__.__name__
-            ),
-            RemovedInLocalflavor20Warning,
-        )

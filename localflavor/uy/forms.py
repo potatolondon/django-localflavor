@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
 """UY-specific form helpers."""
 
-from __future__ import unicode_literals
-
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import RegexField, Select
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from .util import get_validation_digit
 
@@ -16,7 +12,7 @@ class UYDepartmentSelect(Select):
 
     def __init__(self, attrs=None):
         from .uy_departments import DEPARTMENT_CHOICES
-        super(UYDepartmentSelect, self).__init__(attrs, choices=DEPARTMENT_CHOICES)
+        super().__init__(attrs, choices=DEPARTMENT_CHOICES)
 
 
 class UYCIField(RegexField):
@@ -28,9 +24,8 @@ class UYCIField(RegexField):
         'invalid_validation_digit': _("Enter a valid CI number."),
     }
 
-    def __init__(self, *args, **kwargs):
-        super(UYCIField, self).__init__(r'(?P<num>(\d{6,7}|(\d\.)?\d{3}\.\d{3}))-?(?P<val>\d)',
-                                        *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'(?P<num>(\d{6,7}|(\d\.)?\d{3}\.\d{3}))-?(?P<val>\d)', **kwargs)
 
     def clean(self, value):
         """
@@ -41,9 +36,9 @@ class UYCIField(RegexField):
         the correct place. The three typically used formats are supported:
         [X]XXXXXXX, [X]XXXXXX-X and [X.]XXX.XXX-X.
         """
-        value = super(UYCIField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         match = self.regex.match(value)
         if not match:
             raise ValidationError(self.error_messages['invalid'])

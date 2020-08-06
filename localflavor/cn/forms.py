@@ -1,14 +1,10 @@
 """China(mainland)-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 
 from django.forms import ValidationError
 from django.forms.fields import CharField, RegexField, Select
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
 
 from .cn_provinces import CN_PROVINCE_CHOICES
 
@@ -16,15 +12,11 @@ __all__ = (
     'CNProvinceSelect',
     'CNPostCodeField',
     'CNIDCardField',
-    'CNPhoneNumberField',
-    'CNCellNumberField',
 )
 
 
 ID_CARD_RE = r'^\d{15}(\d{2}[0-9xX])?$'
 POST_CODE_RE = r'^\d{6}$'
-PHONE_RE = r'^\d{3,4}-\d{7,8}(-\d+)?$'
-CELL_RE = r'^1[34578]\d{9}$'
 
 # Valid location code used in id card checking algorithm
 CN_LOCATION_CODES = (
@@ -69,7 +61,7 @@ class CNProvinceSelect(Select):
     """A select widget providing the list of provinces and districts in People's Republic of China as choices."""
 
     def __init__(self, attrs=None):
-        super(CNProvinceSelect, self).__init__(attrs, choices=CN_PROVINCE_CHOICES)
+        super().__init__(attrs, choices=CN_PROVINCE_CHOICES)
 
 
 class CNPostCodeField(RegexField):
@@ -83,8 +75,8 @@ class CNPostCodeField(RegexField):
         'invalid': _('Enter a post code in the format XXXXXX.'),
     }
 
-    def __init__(self, *args, **kwargs):
-        super(CNPostCodeField, self).__init__(POST_CODE_RE, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(POST_CODE_RE, **kwargs)
 
 
 class CNIDCardField(CharField):
@@ -110,14 +102,14 @@ class CNIDCardField(CharField):
     }
 
     def __init__(self, max_length=18, min_length=15, *args, **kwargs):
-        super(CNIDCardField, self).__init__(max_length, min_length, *args, **kwargs)
+        super().__init__(max_length=max_length, min_length=min_length, *args, **kwargs)
 
     def clean(self, value):
         """Check whether the input is a valid ID Card Number."""
         # Check the length of the ID card number.
-        super(CNIDCardField, self).clean(value)
-        if not value:
-            return ""
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         # Check whether this ID card number has valid format
         if not re.match(ID_CARD_RE, value):
             raise ValidationError(self.error_messages['invalid'])
@@ -167,43 +159,3 @@ class CNIDCardField(CharField):
                 value[:17],),
         ) % 11
         return '10X98765432'[checksum_index] == value[-1]
-
-
-class CNPhoneNumberField(RegexField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as a telephone number in mainland China.
-
-    A valid phone number could be like: 010-12345678.
-    Considering there might be extension numbers, this could also be: 010-12345678-35.
-    """
-
-    default_error_messages = {
-        'invalid': _('Enter a valid phone number.'),
-    }
-
-    def __init__(self, *args, **kwargs):
-        super(CNPhoneNumberField, self).__init__(PHONE_RE, *args, **kwargs)
-
-
-class CNCellNumberField(RegexField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as a cellphone number in mainland China.
-
-    A valid cellphone number could be like: 13012345678.
-
-    A very rough rule is used here: the first digit should be 1, the second
-    should be 3, 4, 5, 7 or 8, followed by 9 more digits.
-    The total length of a cellphone number should be 11.
-
-    .. versionchanged:: 1.1
-
-       Added 7 as a valid second digit for Chinese virtual mobile ISPs.
-
-    """
-
-    default_error_messages = {
-        'invalid': _('Enter a valid cell number.'),
-    }
-
-    def __init__(self, *args, **kwargs):
-        super(CNCellNumberField, self).__init__(CELL_RE, *args, **kwargs)

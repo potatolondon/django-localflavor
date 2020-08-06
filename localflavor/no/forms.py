@@ -1,16 +1,12 @@
 """Norwegian-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import datetime
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, Field, RegexField, Select
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
 
 from .no_municipalities import MUNICIPALITY_CHOICES
 
@@ -26,16 +22,15 @@ class NOZipCodeField(RegexField):
         'invalid': _('Enter a zip code in the format XXXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(NOZipCodeField, self).__init__(r'^\d{4}$',
-                                             max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{4}$', **kwargs)
 
 
 class NOMunicipalitySelect(Select):
     """A Select widget that uses a list of Norwegian municipalities (fylker) as its choices."""
 
     def __init__(self, attrs=None):
-        super(NOMunicipalitySelect, self).__init__(attrs, choices=MUNICIPALITY_CHOICES)
+        super().__init__(attrs, choices=MUNICIPALITY_CHOICES)
 
 
 class NOSocialSecurityNumber(Field):
@@ -46,7 +41,7 @@ class NOSocialSecurityNumber(Field):
     }
 
     def clean(self, value):
-        super(NOSocialSecurityNumber, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
 
@@ -124,15 +119,15 @@ class NOBankAccountNumber(CharField):
     }
 
     def validate(self, value):
-        super(NOBankAccountNumber, self).validate(value)
+        super().validate(value)
 
-        if value is '':
+        if value in self.empty_values:
             # It's alright to be empty.
             return
         elif not value.isdigit():
             # You must only contain decimals.
             raise ValidationError(self.error_messages['invalid'])
-        elif len(value) is not 11:
+        elif len(value) != 11:
             # They only have one length: the number is 10!
             # That being said, you always store them with the check digit included, so 11.
             raise ValidationError(self.error_messages['invalid_length'])
@@ -147,33 +142,19 @@ class NOBankAccountNumber(CharField):
         remainder = result % 11
         # The checksum is 0 in the event there's no remainder, seeing as we cannot have a checksum of 11
         # when 11 is one digit longer than we've got room for
-        checksum = 0 if remainder is 0 else 11 - remainder
+        checksum = 0 if remainder == 0 else 11 - remainder
 
         if checksum != check_digit:
             raise ValidationError(self.error_messages['invalid_checksum'])
 
     def to_python(self, value):
-        value = super(NOBankAccountNumber, self).to_python(value)
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.replace('.', '').replace(' ', '')
 
     def prepare_value(self, value):
-        if value in EMPTY_VALUES:
-            return value
+        value = self.to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return '{}.{}.{}'.format(value[0:4], value[4:6], value[6:11])
-
-
-class NOPhoneNumberField(RegexField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    Field with phonenumber validation.
-
-    Requires a phone number with 8 digits and optional country code
-    """
-
-    default_error_messages = {
-        'invalid': _('A phone number must be 8 digits and may have country code'),
-    }
-
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(NOPhoneNumberField, self).__init__(
-            r'^(?:\+47)? ?(\d{3}\s?\d{2}\s?\d{3}|\d{2}\s?\d{2}\s?\d{2}\s?\d{2})$',
-            max_length, min_length, *args, **kwargs)

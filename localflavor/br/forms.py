@@ -1,70 +1,44 @@
-# -*- coding: utf-8 -*-
 """BR-specific Form helpers."""
-
-from __future__ import unicode_literals
 
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
-from django.forms.fields import CharField, Field, RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.forms.fields import CharField, Field, Select
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 from .br_states import STATE_CHOICES
+from .validators import BRCNPJValidator, BRCPFValidator, BRPostalCodeValidator
 
-phone_digits_re = re.compile(r'^(\d{2})[-\.]?(\d{4,5})[-\.]?(\d{4})$')
-cpf_digits_re = re.compile(r'^(\d{3})\.(\d{3})\.(\d{3})-(\d{2})$')
-cnpj_digits_re = re.compile(
-    r'^(\d{2})[.-]?(\d{3})[.-]?(\d{3})/(\d{4})-(\d{2})$'
-)
 process_digits_re = re.compile(
     r'^(\d{7})-?(\d{2})\.?(\d{4})\.?(\d)\.?(\d{2})\.?(\d{4})$'
 )
 
 
-class BRZipCodeField(RegexField):
-    """A form field that validates input as a Brazilian zip code, with the format XXXXX-XXX."""
+class BRZipCodeField(CharField):
+    """
+    A form field that validates input as a Brazilian zip code, with the format XXXXX-XXX.
+
+    .. versionchanged:: 2.2
+        Use BRPostalCodeValidator to centralize validation logic and share with equivalent model field.
+        More details at: https://github.com/django/django-localflavor/issues/334
+    """
 
     default_error_messages = {
         'invalid': _('Enter a zip code in the format XXXXX-XXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(BRZipCodeField, self).__init__(r'^\d{5}-\d{3}$',
-                                             max_length, min_length, *args, **kwargs)
-
-
-class BRPhoneNumberField(Field, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as a Brazilian phone number.
-
-    The phone number must be in either of the following formats: XX-XXXX-XXXX or XX-XXXXX-XXXX.
-    """
-
-    default_error_messages = {
-        'invalid': _(('Phone numbers must be in either of the following '
-                      'formats: XX-XXXX-XXXX or XX-XXXXX-XXXX.')),
-    }
-
-    def clean(self, value):
-        super(BRPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+)', '', force_text(value))
-        m = phone_digits_re.search(value)
-        if m:
-            return '%s-%s-%s' % (m.group(1), m.group(2), m.group(3))
-        raise ValidationError(self.error_messages['invalid'])
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(BRPostalCodeValidator())
 
 
 class BRStateSelect(Select):
     """A Select widget that uses a list of Brazilian states/territories as its choices."""
 
     def __init__(self, attrs=None):
-        super(BRStateSelect, self).__init__(attrs, choices=STATE_CHOICES)
+        super().__init__(attrs, choices=STATE_CHOICES)
 
 
 class BRStateChoiceField(Field):
@@ -75,32 +49,21 @@ class BRStateChoiceField(Field):
         'invalid': _('Select a valid brazilian state. That state is not one of the available states.'),
     }
 
-    def __init__(self, required=True, widget=None, label=None, initial=None, help_text=None):
-        super(BRStateChoiceField, self).__init__(required, widget, label, initial, help_text)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.widget.choices = STATE_CHOICES
 
     def clean(self, value):
-        value = super(BRStateChoiceField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             value = ''
-        value = force_text(value)
+        value = force_str(value)
         if value == '':
             return value
-        valid_values = set([force_text(entry[0]) for entry in self.widget.choices])
+        valid_values = set([force_str(entry[0]) for entry in self.widget.choices])
         if value not in valid_values:
             raise ValidationError(self.error_messages['invalid'])
         return value
-
-
-def dv_maker(v):
-    if v >= 2:
-        return 11 - v
-    return 0
-
-
-# TODO deprecate function because it's name is not PEP8 compliant, issue #258
-def DV_maker(v):  # noqa
-    return dv_maker(v)
 
 
 class BRCPFField(CharField):
@@ -111,6 +74,10 @@ class BRCPFField(CharField):
 
     More information:
     http://en.wikipedia.org/wiki/Cadastro_de_Pessoas_F%C3%ADsicas
+
+    .. versionchanged:: 2.2
+        Use BRCPFValidator to centralize validation logic and share with equivalent model field.
+        More details at: https://github.com/django/django-localflavor/issues/334
     """
 
     default_error_messages = {
@@ -119,38 +86,15 @@ class BRCPFField(CharField):
     }
 
     def __init__(self, max_length=14, min_length=11, *args, **kwargs):
-        super(BRCPFField, self).__init__(max_length, min_length, *args, **kwargs)
+        super().__init__(max_length=max_length, min_length=min_length, *args, **kwargs)
+        self.validators.append(BRCPFValidator())
 
     def clean(self, value):
         """Value can be either a string in the format XXX.XXX.XXX-XX or an 11-digit number."""
-        value = super(BRCPFField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        orig_value = value[:]
-        if not value.isdigit():
-            cpf = cpf_digits_re.search(value)
-            if cpf:
-                value = ''.join(cpf.groups())
-            else:
-                raise ValidationError(self.error_messages['invalid'])
-
-        if len(value) != 11:
-            raise ValidationError(self.error_messages['max_digits'])
-        orig_dv = value[-2:]
-
-        new_1dv = sum([i * int(value[idx])
-                      for idx, i in enumerate(range(10, 1, -1))])
-        new_1dv = dv_maker(new_1dv % 11)
-        value = value[:-2] + str(new_1dv) + value[-1]
-        new_2dv = sum([i * int(value[idx])
-                      for idx, i in enumerate(range(11, 1, -1))])
-        new_2dv = dv_maker(new_2dv % 11)
-        value = value[:-1] + str(new_2dv)
-        if value[-2:] != orig_dv:
-            raise ValidationError(self.error_messages['invalid'])
-        if value.count(value[0]) == 11:
-            raise ValidationError(self.error_messages['invalid'])
-        return orig_value
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
+        return value
 
 
 class BRCNPJField(CharField):
@@ -170,6 +114,9 @@ class BRCNPJField(CharField):
 
     .. _Brazilian CNPJ: http://en.wikipedia.org/wiki/National_identification_number#Brazil
     .. versionchanged:: 1.4
+    .. versionchanged:: 2.2
+        Use BRCNPJValidator to centralize validation logic and share with equivalent model field.
+        More details at: https://github.com/django/django-localflavor/issues/334
     """
 
     default_error_messages = {
@@ -178,35 +125,15 @@ class BRCNPJField(CharField):
     }
 
     def __init__(self, min_length=14, max_length=18, *args, **kwargs):
-        super(BRCNPJField, self).__init__(max_length, min_length, *args, **kwargs)
+        super().__init__(max_length=max_length, min_length=min_length, *args, **kwargs)
+        self.validators.append(BRCNPJValidator())
 
     def clean(self, value):
         """Value can be either a string in the format XX.XXX.XXX/XXXX-XX or a group of 14 characters."""
-        value = super(BRCNPJField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        orig_value = value[:]
-        if not value.isdigit():
-            cnpj = cnpj_digits_re.search(value)
-            if cnpj:
-                value = ''.join(cnpj.groups())
-            else:
-                raise ValidationError(self.error_messages['invalid'])
-
-        if len(value) != 14:
-            raise ValidationError(self.error_messages['max_digits'])
-        orig_dv = value[-2:]
-
-        new_1dv = sum([i * int(value[idx]) for idx, i in enumerate(list(range(5, 1, -1)) + list(range(9, 1, -1)))])
-        new_1dv = dv_maker(new_1dv % 11)
-        value = value[:-2] + str(new_1dv) + value[-1]
-        new_2dv = sum([i * int(value[idx]) for idx, i in enumerate(list(range(6, 1, -1)) + list(range(9, 1, -1)))])
-        new_2dv = dv_maker(new_2dv % 11)
-        value = value[:-1] + str(new_2dv)
-        if value[-2:] != orig_dv:
-            raise ValidationError(self.error_messages['invalid'])
-
-        return orig_value
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
+        return value
 
 
 def mod_97_base10(value):
@@ -227,13 +154,13 @@ class BRProcessoField(CharField):
     default_error_messages = {'invalid': _("Invalid Process number.")}
 
     def __init__(self, max_length=25, min_length=20, *args, **kwargs):
-        super(BRProcessoField, self).__init__(max_length, min_length, *args, **kwargs)
+        super().__init__(max_length=max_length, min_length=min_length, *args, **kwargs)
 
     def clean(self, value):
         """Value can be either a string in the format NNNNNNN-DD.AAAA.J.TR.OOOO or an 20-digit number."""
-        value = super(BRProcessoField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         orig_value = value[:]
         if not value.isdigit():

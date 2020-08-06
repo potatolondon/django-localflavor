@@ -1,18 +1,11 @@
 """Singapore-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, RegexField
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
-
-PHONE_DIGITS_RE = re.compile(r'^[689](\d{7})$')
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 NRIC_FIN_RE = re.compile(r'^[SFTG](\d{7})[A-Z]$')
 NRIC_FIN_DIGIT_WEIGHT = [2, 7, 6, 5, 4, 3, 2]
@@ -31,37 +24,11 @@ class SGPostCodeField(RegexField):
         'invalid': _('Enter a 6-digit postal code.'),
     }
 
-    def __init__(self, *args, **kwargs):
-        super(SGPostCodeField, self).__init__(r'^\d{6}$', *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{6}$', **kwargs)
 
 
-class SGPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    A form field that validates input as a Singapore phone number.
-
-    Valid numbers have 8 digits and start with either 6, 8, or 9
-    """
-
-    default_error_messages = {
-        'invalid': _('Phone numbers must contain 8 digits and start with '
-                     'either 6, or 8, or 9.')
-
-    }
-
-    def clean(self, value):
-        """Validate a phone number. Strips parentheses, whitespace and hyphens."""
-        super(SGPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+|-)', '', force_text(value))
-        phone_match = PHONE_DIGITS_RE.search(value)
-        if phone_match:
-            return '%s' % phone_match.group()
-        raise ValidationError(self.error_messages['invalid'])
-
-
-# TODO change to a pep8 compatible class name
-class SGNRIC_FINField(CharField):  # noqa
+class SGNRICFINField(CharField):
     """
     A form field that validates input as a Singapore National Registration.
 
@@ -90,10 +57,10 @@ class SGNRIC_FINField(CharField):  # noqa
 
         Strips whitespace.
         """
-        super(SGNRIC_FINField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\s+)', '', force_text(value.upper()))
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
+        value = re.sub(r'(\s+)', '', force_str(value.upper()))
         match = NRIC_FIN_RE.search(value)
         if not match:
             raise ValidationError(self.error_messages['invalid'])

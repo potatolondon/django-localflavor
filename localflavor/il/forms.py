@@ -1,18 +1,13 @@
 """Israeli-specific form helpers."""
-from __future__ import unicode_literals
-
 import re
 
 from django.core.exceptions import ValidationError
 from django.core.validators import EMPTY_VALUES
 from django.forms.fields import Field, RegexField
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.checksums import luhn
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
+from stdnum import luhn
 
 id_number_re = re.compile(r'^(?P<number>\d{1,8})-?(?P<check>\d)$')
-mobile_phone_number_re = re.compile(r'^(\()?0?(5[02-9])(?(1)\))-?\d{7}$')  # including palestinian mobile carriers
 
 
 class ILPostalCodeField(RegexField):
@@ -26,13 +21,13 @@ class ILPostalCodeField(RegexField):
         'invalid': _('Enter a postal code in the format XXXXXXX (or XXXXX) - digits only'),
     }
 
-    def __init__(self, *args, **kwargs):
-        super(ILPostalCodeField, self).__init__(r'^\d{5}$|^\d{7}$', *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{5}$|^\d{7}$', **kwargs)
 
     def clean(self, value):
-        if value not in EMPTY_VALUES:
-            value = value.replace(" ", "")
-        return super(ILPostalCodeField, self).clean(value)
+        if value not in self.empty_values:
+            value = value.replace(' ', '')
+        return super().clean(value)
 
 
 class ILIDNumberField(Field):
@@ -58,7 +53,7 @@ class ILIDNumberField(Field):
     }
 
     def clean(self, value):
-        value = super(ILIDNumberField, self).clean(value)
+        value = super().clean(value)
 
         if value in EMPTY_VALUES:
             return ''
@@ -68,17 +63,6 @@ class ILIDNumberField(Field):
             raise ValidationError(self.error_messages['invalid'])
 
         value = match.group('number') + match.group('check')
-        if not luhn(value):
+        if not luhn.is_valid(value):
             raise ValidationError(self.error_messages['invalid'])
         return value
-
-
-class ILMobilePhoneNumberField(RegexField, DeprecatedPhoneNumberFormFieldMixin):
-    """A form field that validates its input as an Israeli Mobile phone number."""
-
-    default_error_messages = {
-        'invalid': _('Enter a valid Mobile Number.'),
-    }
-
-    def __init__(self, *args, **kwargs):
-        super(ILMobilePhoneNumberField, self).__init__(mobile_phone_number_re, *args, **kwargs)

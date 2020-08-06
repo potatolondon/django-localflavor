@@ -1,23 +1,20 @@
 """ID-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 import time
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import Field, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy as _
 
 postcode_re = re.compile(r'^[1-9]\d{4}$')
-phone_re = re.compile(r'^(\+62|0)[2-9]\d{7,10}$')
 plate_re = re.compile(r'^(?P<prefix>[A-Z]{1,2}) ' +
                       r'(?P<number>\d{1,5})( (?P<suffix>([A-Z]{1,3}|[1-9][0-9]{,2})))?$')
 nik_re = re.compile(r'^\d{16}$')
+
+WOMAN_IDENTIFIER = 40
 
 
 class IDPostCodeField(Field):
@@ -32,7 +29,7 @@ class IDPostCodeField(Field):
     }
 
     def clean(self, value):
-        super(IDPostCodeField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
 
@@ -47,7 +44,7 @@ class IDPostCodeField(Field):
         if value[0] == '1' and value[4] != '0':
             raise ValidationError(self.error_messages['invalid'])
 
-        return '%s' % (value, )
+        return '%s' % (value,)
 
 
 class IDProvinceSelect(Select):
@@ -56,31 +53,7 @@ class IDProvinceSelect(Select):
     def __init__(self, attrs=None):
         # Load data in memory only when it is required, see also #17275
         from .id_choices import PROVINCE_CHOICES
-        super(IDProvinceSelect, self).__init__(attrs, choices=PROVINCE_CHOICES)
-
-
-class IDPhoneNumberField(Field, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    An Indonesian telephone number field.
-
-    http://id.wikipedia.org/wiki/Daftar_kode_telepon_di_Indonesia
-    """
-
-    default_error_messages = {
-        'invalid': _('Enter a valid phone number'),
-    }
-
-    def clean(self, value):
-        super(IDPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-
-        phone_number = re.sub(r'[\-\s\(\)]', '', force_text(value))
-
-        if phone_re.search(phone_number):
-            return force_text(value)
-
-        raise ValidationError(self.error_messages['invalid'])
+        super().__init__(attrs, choices=PROVINCE_CHOICES)
 
 
 class IDLicensePlatePrefixSelect(Select):
@@ -93,8 +66,7 @@ class IDLicensePlatePrefixSelect(Select):
     def __init__(self, attrs=None):
         # Load data in memory only when it is required, see also #17275
         from .id_choices import LICENSE_PLATE_PREFIX_CHOICES
-        super(IDLicensePlatePrefixSelect, self).__init__(attrs,
-                                                         choices=LICENSE_PLATE_PREFIX_CHOICES)
+        super().__init__(attrs, choices=LICENSE_PLATE_PREFIX_CHOICES)
 
 
 class IDLicensePlateField(Field):
@@ -112,10 +84,10 @@ class IDLicensePlateField(Field):
     foreign_vehicles_prefixes = ('CD', 'CC')
 
     def clean(self, value):
-        super(IDLicensePlateField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
-        plate_number = re.sub(r'\s+', ' ', force_text(value.strip())).upper()
+        plate_number = re.sub(r'\s+', ' ', force_str(value.strip())).upper()
 
         number, prefix, suffix = self._validate_regex_match(plate_number)
         self._validate_prefix(prefix)
@@ -187,6 +159,7 @@ class IDNationalIdentityNumberField(Field):
     http://id.wikipedia.org/wiki/Nomor_Induk_Kependudukan
 
     xx.xxxx.ddmmyy.xxxx - 16 digits (excl. dots)
+    notes: for women dd + 40
     """
 
     default_error_messages = {
@@ -194,11 +167,11 @@ class IDNationalIdentityNumberField(Field):
     }
 
     def clean(self, value):
-        super(IDNationalIdentityNumberField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
 
-        value = re.sub(r'[\s.]', '', force_text(value))
+        value = re.sub(r'[\s.]', '', force_str(value))
 
         if not nik_re.search(value):
             raise ValidationError(self.error_messages['invalid'])
@@ -209,6 +182,10 @@ class IDNationalIdentityNumberField(Field):
         year = int(value[10:12])
         month = int(value[8:10])
         day = int(value[6:8])
+        # for woman, birth date is added with 40
+        if day > 31:
+            day -= WOMAN_IDENTIFIER
+
         current_year = time.localtime().tm_year
         if year < int(str(current_year)[-2:]):
             if not IDNationalIdentityNumberField._valid_nik_date(2000 + int(year), month, day):

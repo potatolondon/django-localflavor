@@ -1,18 +1,12 @@
 """USA-specific Form helpers."""
 
-from __future__ import unicode_literals
-
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, Field, RegexField, Select
-from django.utils.encoding import force_text
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
-
-phone_digits_re = re.compile(r'^(?:1-?)?(\d{3})[-\.]?(\d{3})[-\.]?(\d{4})$')
 ssn_re = re.compile(r"^(?P<area>\d{3})[-\ ]?(?P<group>\d{2})[-\ ]?(?P<serial>\d{4})$")
 
 
@@ -36,31 +30,14 @@ class USZipCodeField(RegexField):
         'invalid': _('Enter a zip code in the format XXXXX or XXXXX-XXXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(USZipCodeField, self).__init__(r'^\d{5}(?:-\d{4})?$',
-                                             max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^\d{5}(?:-\d{4})?$', **kwargs)
 
     def to_python(self, value):
-        value = super(USZipCodeField, self).to_python(value)
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return self.empty_value
         return value.strip()
-
-
-class USPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """A form field that validates input as a U.S. phone number."""
-
-    default_error_messages = {
-        'invalid': _('Phone numbers must be in XXX-XXX-XXXX format.'),
-    }
-
-    def clean(self, value):
-        super(USPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-        value = re.sub('(\(|\)|\s+)', '', force_text(value))
-        m = phone_digits_re.search(value)
-        if m:
-            return '%s-%s-%s' % (m.group(1), m.group(2), m.group(3))
-        raise ValidationError(self.error_messages['invalid'])
 
 
 class USSocialSecurityNumberField(CharField):
@@ -86,9 +63,9 @@ class USSocialSecurityNumberField(CharField):
     }
 
     def clean(self, value):
-        super(USSocialSecurityNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
         match = re.match(ssn_re, value)
         if not match:
             raise ValidationError(self.error_messages['invalid'])
@@ -122,7 +99,7 @@ class USStateField(Field):
 
     def clean(self, value):
         from .us_states import STATES_NORMALIZED
-        super(USStateField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ''
         try:
@@ -142,7 +119,7 @@ class USStateSelect(Select):
 
     def __init__(self, attrs=None):
         from .us_states import STATE_CHOICES
-        super(USStateSelect, self).__init__(attrs, choices=STATE_CHOICES)
+        super().__init__(attrs, choices=STATE_CHOICES)
 
 
 class USPSSelect(Select):
@@ -158,4 +135,4 @@ class USPSSelect(Select):
 
     def __init__(self, attrs=None):
         from .us_states import USPS_CHOICES
-        super(USPSSelect, self).__init__(attrs, choices=USPS_CHOICES)
+        super().__init__(attrs, choices=USPS_CHOICES)

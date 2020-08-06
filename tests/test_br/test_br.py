@@ -1,15 +1,14 @@
-# -*- encoding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.test import SimpleTestCase
 
-from localflavor.br.forms import (BRCNPJField, BRCPFField, BRPhoneNumberField, BRProcessoField, BRStateChoiceField,
-                                  BRStateSelect, BRZipCodeField)
+from localflavor.br import models
+from localflavor.br.forms import (BRCNPJField, BRCPFField, BRProcessoField, BRStateChoiceField, BRStateSelect,
+                                  BRZipCodeField)
+from tests.test_br.forms import BRPersonProfileForm
 
 
 class BRLocalFlavorTests(SimpleTestCase):
     def test_BRZipCodeField(self):
-        error_format = ['Enter a zip code in the format XXXXX-XXX.']
+        error_format = ['Enter a postal code in the format 00000-000.']
         valid = {
             '12345-123': '12345-123',
         }
@@ -21,6 +20,14 @@ class BRLocalFlavorTests(SimpleTestCase):
             '-123': error_format,
         }
         self.assertFieldOutput(BRZipCodeField, valid, invalid)
+
+        for postal_code, _ in invalid.items():
+            form = BRPersonProfileForm({
+                'postal_code': postal_code
+            })
+
+            self.assertFalse(form.is_valid())
+            self.assertEqual(form.errors['postal_code'], error_format)
 
     def test_BRCNPJField(self):
         error_format = {
@@ -43,7 +50,7 @@ class BRLocalFlavorTests(SimpleTestCase):
         valid.update(short_version_valid)
 
         invalid = {
-            '../-12345678901210': error_format['invalid'],
+            '../-12345678901234': error_format['invalid'],
             '12-345-678/9012-10': error_format['invalid'],
             '12.345.678/9012-10': error_format['invalid'],
             '12345678/9012-10': error_format['invalid'],
@@ -58,6 +65,14 @@ class BRLocalFlavorTests(SimpleTestCase):
         # The long versions should be invalid when 'max_length=14' passed to the field.
         invalid_long = dict([(k, [error_format['only_short_version'][0] % len(k)]) for k in long_version_valid.keys()])
         self.assertFieldOutput(BRCNPJField, short_version_valid, invalid_long, field_kwargs={'max_length': 14})
+
+        for cnpj, invalid_msg in invalid.items():
+            form = BRPersonProfileForm({
+                'cnpj': cnpj
+            })
+
+            self.assertFalse(form.is_valid())
+            self.assertEqual(form.errors['cnpj'], invalid_msg)
 
     def test_BRCPFField(self):
         error_format = ['Invalid CPF number.']
@@ -80,37 +95,19 @@ class BRLocalFlavorTests(SimpleTestCase):
             '22222222222': error_format,
             '539.315.127-22': error_format,
             '375.788.573-XX': error_format,
-            '375.788.573-000': error_atmost_chars,
-            '123.456.78': error_atleast_chars,
+            '375.788.573-000': error_atmost_chars + error_format,
+            '123.456.78': error_atleast_chars + error_format,
             '123456789555': error_atmost,
         }
         self.assertFieldOutput(BRCPFField, valid, invalid)
 
-    def test_BRPhoneNumberField(self):
-        error_format = [('Phone numbers must be in either of the following '
-                         'formats: XX-XXXX-XXXX or XX-XXXXX-XXXX.')]
-        valid = {
-            '41-3562-3464': '41-3562-3464',
-            '4135623464': '41-3562-3464',
-            '41 3562-3464': '41-3562-3464',
-            '41 3562 3464': '41-3562-3464',
-            '(41) 3562 3464': '41-3562-3464',
-            '41.3562.3464': '41-3562-3464',
-            '41.93562.3464': '41-93562-3464',
-            '41.3562-3464': '41-3562-3464',
-            ' (41) 3562.3464': '41-3562-3464',
-            ' (41) 98765.3464': '41-98765-3464',
-            '(16) 91342-4325': '16-91342-4325',
-        }
-        invalid = {
-            '11-914-925': error_format,
-            '11-9144-43925': error_format,
-            '11-91342-94325': error_format,
-            '411-9134-9435': error_format,
-            '+55-41-3562-3464': error_format,
-            '41 3562–3464': error_format,
-        }
-        self.assertFieldOutput(BRPhoneNumberField, valid, invalid)
+        for cpf, invalid_msg in invalid.items():
+            form = BRPersonProfileForm({
+                'cpf': cpf
+            })
+
+            self.assertFalse(form.is_valid())
+            self.assertIn(form.errors['cpf'][0], invalid_msg)
 
     def test_BRProcessoField(self):
         error_format = ['Invalid Process number.']
@@ -203,3 +200,53 @@ class BRLocalFlavorTests(SimpleTestCase):
             'pr': error_invalid,
         }
         self.assertFieldOutput(BRStateChoiceField, valid, invalid)
+
+    def test_model_form_valid(self):
+        data_to_test = [
+            {
+                'cpf': '84828509895',
+                'cnpj': '64132916000188',
+                'postal_code': '08552-170'
+            },
+            {
+                'cpf': '84828509895',
+                'cnpj': '64132916/0001-88',
+                'postal_code': '08552-170'
+            },
+            {
+                'cpf': '663.256.017-26',
+                'cnpj': '64.132.916/0001-88',
+                'postal_code': '08552-170'
+            }
+        ]
+
+        for case in data_to_test:
+            form = BRPersonProfileForm(case)
+            self.assertTrue(form.is_valid())
+
+
+class BRLocalFlavorModelTests(SimpleTestCase):
+
+    def test_BRCNPJField(self):
+        instance = models.BRCNPJField()
+        name, path, args, kwargs = instance.deconstruct()
+        new_instance = models.BRCNPJField(*args, **kwargs)
+        self.assertEqual(instance.max_length, new_instance.max_length)
+        self.assertEqual(instance.description, new_instance.description)
+        self.assertEqual(instance.validators, new_instance.validators)
+
+    def test_BRCPFField(self):
+        instance = models.BRCPFField()
+        name, path, args, kwargs = instance.deconstruct()
+        new_instance = models.BRCPFField(*args, **kwargs)
+        self.assertEqual(instance.max_length, new_instance.max_length)
+        self.assertEqual(instance.description, new_instance.description)
+        self.assertEqual(instance.validators, new_instance.validators)
+
+    def test_BRPostalCodeField(self):
+        instance = models.BRPostalCodeField()
+        name, path, args, kwargs = instance.deconstruct()
+        new_instance = models.BRPostalCodeField(*args, **kwargs)
+        self.assertEqual(instance.max_length, new_instance.max_length)
+        self.assertEqual(instance.description, new_instance.description)
+        self.assertEqual(instance.validators, new_instance.validators)

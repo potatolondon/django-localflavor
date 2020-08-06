@@ -1,11 +1,8 @@
-from __future__ import unicode_literals
-
 import datetime
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import RegexField, Select
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from .mk_choices import MK_MUNICIPALITIES
 
@@ -22,11 +19,11 @@ class MKIdentityCardNumberField(RegexField):
                      ' either 4 to 7 digits or an uppercase letter and 7 digits.'),
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         kwargs['min_length'] = None
         kwargs['max_length'] = 8
         regex = r'(^[A-Z]{1}\d{7}$)|(^\d{4,7}$)'
-        super(MKIdentityCardNumberField, self).__init__(regex, *args, **kwargs)
+        super().__init__(regex, **kwargs)
 
 
 class MKMunicipalitySelect(Select):
@@ -37,7 +34,7 @@ class MKMunicipalitySelect(Select):
     """
 
     def __init__(self, attrs=None):
-        super(MKMunicipalitySelect, self).__init__(attrs, choices=MK_MUNICIPALITIES)
+        super().__init__(attrs, choices=MK_MUNICIPALITIES)
 
 
 class UMCNField(RegexField):
@@ -62,16 +59,16 @@ class UMCNField(RegexField):
         'checksum': _('The UMCN is not valid.'),
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         kwargs['min_length'] = None
         kwargs['max_length'] = 13
-        super(UMCNField, self).__init__(r'^\d{13}$', *args, **kwargs)
+        super().__init__(r'^\d{13}$', **kwargs)
 
     def clean(self, value):
-        value = super(UMCNField, self).clean(value)
+        value = super().clean(value)
 
-        if value in EMPTY_VALUES:
-            return ''
+        if value in self.empty_values:
+            return self.empty_value
 
         if not self._validate_date_part(value):
             raise ValidationError(self.error_messages['date'])
@@ -81,13 +78,11 @@ class UMCNField(RegexField):
             raise ValidationError(self.error_messages['checksum'])
 
     def _validate_checksum(self, value):
-        a, b, c, d, e, f, g, h, i, j, k, l, K = [
-            int(digit) for digit in value]
-        m = 11 - ((7 * (a + g) + 6 * (b + h) + 5 * (
-            c + i) + 4 * (d + j) + 3 * (e + k) + 2 * (f + l)) % 11)
-        if 1 <= m <= 9 and K == m:
+        a, b, c, d, e, f, g, h, i, j, k, l, checksum = [int(digit) for digit in value]
+        m = 11 - ((7 * (a + g) + 6 * (b + h) + 5 * (c + i) + 4 * (d + j) + 3 * (e + k) + 2 * (f + l)) % 11)
+        if 1 <= m <= 9 and checksum == m:
             return True
-        elif m == 11 and K == 0:
+        elif m == 11 and checksum == 0:
             return True
         else:
             return False

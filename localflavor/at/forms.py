@@ -1,12 +1,10 @@
 """AT-specific Form helpers."""
-from __future__ import unicode_literals
-
 import re
 
 from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import Field, RegexField, Select
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from .at_states import STATE_CHOICES
 
@@ -24,16 +22,15 @@ class ATZipCodeField(RegexField):
         'invalid': _('Enter a zip code in the format XXXX.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
-        super(ATZipCodeField, self).__init__(r'^[1-9]{1}\d{3}$',
-                                             max_length, min_length, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(r'^[1-9]{1}\d{3}$', **kwargs)
 
 
 class ATStateSelect(Select):
     """A ``Select`` widget that uses a list of AT states as its choices."""
 
     def __init__(self, attrs=None):
-        super(ATStateSelect, self).__init__(attrs, choices=STATE_CHOICES)
+        super().__init__(attrs, choices=STATE_CHOICES)
 
 
 class ATSocialSecurityNumberField(Field):
@@ -55,7 +52,7 @@ class ATSocialSecurityNumberField(Field):
     }
 
     def clean(self, value):
-        value = super(ATSocialSecurityNumberField, self).clean(value)
+        value = super().clean(value)
         if value in EMPTY_VALUES:
             return ""
         if not re_ssn.search(value):

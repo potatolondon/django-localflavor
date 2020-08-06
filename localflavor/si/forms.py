@@ -1,16 +1,11 @@
 """Slovenian specific form helpers."""
 
-from __future__ import unicode_literals
-
 import datetime
 import re
 
-from django.core.validators import EMPTY_VALUES
 from django.forms import ValidationError
 from django.forms.fields import CharField, ChoiceField, Select
-from django.utils.translation import ugettext_lazy as _
-
-from localflavor.generic.forms import DeprecatedPhoneNumberFormFieldMixin
+from django.utils.translation import gettext_lazy as _
 
 from .si_postalcodes import SI_POSTALCODES_CHOICES
 
@@ -30,11 +25,9 @@ class SIEMSOField(CharField):
     emso_regex = re.compile('^(\d{2})(\d{2})(\d{3})(\d{2})(\d{3})(\d)$')
 
     def clean(self, value):
-        super(SIEMSOField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-
-        value = value.strip()
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         m = self._regex_match(value)
         day, month, year, nationality, gender, checksum = [int(i) for i in m.groups()]
@@ -97,11 +90,9 @@ class SITaxNumberField(CharField):
     sitax_regex = re.compile('^(?:SI)?([1-9]\d{7})$')
 
     def clean(self, value):
-        super(SITaxNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-
-        value = value.strip()
+        value = super().clean(value)
+        if value in self.empty_values:
+            return self.empty_value
 
         m = self.sitax_regex.match(value)
         if m is None:
@@ -128,47 +119,11 @@ class SIPostalCodeField(ChoiceField):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('choices', SI_POSTALCODES_CHOICES)
-        super(SIPostalCodeField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class SIPostalCodeSelect(Select):
     """A Select widget that uses Slovenian postal codes as its choices."""
 
     def __init__(self, attrs=None):
-        super(SIPostalCodeSelect, self).__init__(attrs,
-                                                 choices=SI_POSTALCODES_CHOICES)
-
-
-class SIPhoneNumberField(CharField, DeprecatedPhoneNumberFormFieldMixin):
-    """
-    Slovenian phone number field.
-
-    Phone number must contain at least local area code.
-    Country code can be present.
-
-    Examples:
-
-    * +38640XXXXXX
-    * 0038640XXXXXX
-    * 040XXXXXX
-    * 01XXXXXX
-    * 0590XXXXX
-
-    """
-
-    default_error_messages = {
-        'invalid': _('Enter phone number in form +386XXXXXXXX or 0XXXXXXXX.'),
-    }
-    phone_regex = re.compile('^(?:(?:00|\+)386|0)(\d{7,8})$')
-
-    def clean(self, value):
-        super(SIPhoneNumberField, self).clean(value)
-        if value in EMPTY_VALUES:
-            return ''
-
-        value = value.replace(' ', '').replace('-', '').replace('/', '')
-        m = self.phone_regex.match(value)
-
-        if m is None:
-            raise ValidationError(self.error_messages['invalid'])
-        return m.groups()[0]
+        super().__init__(attrs, choices=SI_POSTALCODES_CHOICES)

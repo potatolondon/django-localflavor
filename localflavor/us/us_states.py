@@ -13,7 +13,7 @@ when explicitly needed.
 import operator
 
 from django.utils.functional import lazy
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 
 #: The 48 contiguous states, plus the District of Columbia.
@@ -242,6 +242,7 @@ STATES_NORMALIZED = {
     'fl': 'FL',
     'fla': 'FL',
     'florida': 'FL',
+    'fm': 'FM',
     'fsm': 'FM',
     'ga': 'GA',
     'georgia': 'GA',
@@ -279,6 +280,7 @@ STATES_NORMALIZED = {
     'massachussetts': 'MA',
     'md': 'MD',
     'me': 'ME',
+    'mh': 'MH',
     'mi': 'MI',
     'mich': 'MI',
     'michigan': 'MI',
@@ -337,6 +339,7 @@ STATES_NORMALIZED = {
     'pennsylvania': 'PA',
     'pr': 'PR',
     'puerto rico': 'PR',
+    'pw': 'PW',
     'republic of palau': 'PW',
     'republic of the marshall islands': 'MH',
     'rhode island': 'RI',

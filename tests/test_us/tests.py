@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.test import TestCase
 
 from localflavor.us import forms
@@ -269,24 +267,6 @@ class USLocalFlavorTests(TestCase):
         """Test that the full US ZIP code field is really the full list."""
         self.assertHTMLEqual(str(self.form['zip_code']),
                              '<input id="id_zip_code" maxlength="10" name="zip_code" type="text" value="12345" />')
-
-    def test_USPhoneNumberField(self):
-        error_format = ['Phone numbers must be in XXX-XXX-XXXX format.']
-        valid = {
-            '312-555-1212': '312-555-1212',
-            '3125551212': '312-555-1212',
-            '312 555-1212': '312-555-1212',
-            '(312) 555-1212': '312-555-1212',
-            '312 555 1212': '312-555-1212',
-            '312.555.1212': '312-555-1212',
-            '312.555-1212': '312-555-1212',
-            ' (312) 555.1212 ': '312-555-1212',
-        }
-        invalid = {
-            '555-1212': error_format,
-            '312-55-1212': error_format,
-        }
-        self.assertFieldOutput(forms.USPhoneNumberField, valid, invalid)
 
     def test_USStateField(self):
         error_invalid = ['Enter a U.S. state or territory.']
